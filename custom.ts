@@ -4,17 +4,17 @@
  */
 
 // Access runtime services dynamically so this package compiles across targets
-declare const globalThis: any;
+declare const control: any;
+declare const led: any;
 
 function getControl(): any {
-    return globalThis && globalThis.control;
+    return typeof control !== "undefined" ? control : undefined;
 }
 
 // Access the LED matrix dynamically without hard references so this package
 // compiles on Arcade devices where the `led` namespace isn't available.
 function getLed(): any {
-    const matrix = globalThis && globalThis.led;
-    return matrix && typeof matrix.plot === "function" ? matrix : undefined;
+    return typeof led !== "undefined" && typeof led.plot === "function" ? led : undefined;
 }
 
 //% weight=90 color=#6d009c icon=""
