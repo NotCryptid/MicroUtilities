@@ -1,4 +1,4 @@
-var led: any;
+let led: any;
 
 namespace pxsim.microUtilities {
     export function _storageCapacity(): number {
