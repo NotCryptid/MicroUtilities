@@ -2,7 +2,8 @@
     "name": "MicroUtilities",
     "description": "",
     "dependencies": {
-        "device": "*"
+        "core": "*",
+        "microphone": "*"
     },
     "files": [
         "main.blocks",
@@ -14,11 +15,8 @@
     "testFiles": [
         "test.ts"
     ],
-    "targetVersions": {
-        "target": "2.0.56",
-        "targetId": "arcade"
-    },
     "supportedTargets": [
+        "microbit",
         "arcade"
     ],
     "preferredEditor": "tsprj"
