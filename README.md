@@ -15,6 +15,7 @@ A set of useful tools for MakeCode Arcade
 ## Planned features
 - Rotating sprites in 90 degree intervals
 - Detecting if device is a micro:bit
+- Obtaining the micro:bit's serial number
 - Reading and writing to the usb port
 - Arcade and Micro:bit interconectivity via radio
 
