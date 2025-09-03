@@ -8,7 +8,8 @@
     "files": [
         "README.md",
         "assets.json",
-        "custom.ts"
+        "custom.ts",
+        "microutils.cpp"
     ],
     "testFiles": [],
     "targetVersions": {

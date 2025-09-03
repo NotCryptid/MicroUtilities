@@ -3,20 +3,21 @@
  * LED helpers become no-ops on targets without a built-in 5x5 matrix (e.g. Arcade boards).
  */
 
-// Access runtime services dynamically so this package compiles across targets
-declare var control: any;
-declare var led: any;
-declare var DAL: any;
-
-function getControl(): any {
-    return typeof control !== "undefined" ? control : undefined;
-}
-
-// Access the LED matrix dynamically without hard references so this package
-// compiles on Arcade devices where the `led` namespace isn't available.
-function getLed(): any {
-    return typeof led !== "undefined" && typeof (led as any).plot === "function" ? (led as any) : undefined;
-}
+// Native shims implemented in C++
+//% shim=microUtilities::_storageCapacity
+declare function _storageCapacity(): number;
+//% shim=microUtilities::_storageUsage
+declare function _storageUsage(): number;
+//% shim=microUtilities::_ramUsage
+declare function _ramUsage(): number;
+//% shim=microUtilities::_cpuUsage
+declare function _cpuUsage(): number;
+//% shim=microUtilities::_togglePixel
+declare function _togglePixel(x: number, y: number): void;
+//% shim=microUtilities::_setPixel
+declare function _setPixel(x: number, y: number, on: boolean): void;
+//% shim=microUtilities::_setPixelBrightness
+declare function _setPixelBrightness(x: number, y: number, brightness: number): void;
 
 //% weight=90 color=#6d009c icon=""
 namespace microUtilities {
@@ -62,8 +63,7 @@ namespace microUtilities {
      */
     //% block="storage capacity in %unit" unit.defl=StorageUnit.Bytes
     export function storageCapacity(unit: StorageUnit = StorageUnit.Bytes): number {
-        const ctrl = getControl();
-        const bytes = ctrl && ctrl.getConfigValue ? ctrl.getConfigValue(DAL.CFG_FLASH_BYTES, 0) : 0;
+        const bytes = _storageCapacity();
         return convertStorage(bytes, unit);
     }
 
@@ -72,8 +72,7 @@ namespace microUtilities {
      */
     //% block="storage usage in %unit" unit.defl=StorageUnit.Bytes
     export function storageUsage(unit: StorageUnit = StorageUnit.Bytes): number {
-        const ctrl = getControl();
-        const bytes = ctrl && ctrl.programSize ? ctrl.programSize() : 0;
+        const bytes = _storageUsage();
         return convertStorage(bytes, unit);
     }
 
@@ -82,16 +81,8 @@ namespace microUtilities {
      */
     //% block="RAM usage in %unit" unit.defl=DataUnit.Bytes
     export function ramUsage(unit: DataUnit = DataUnit.Bytes): number {
-        const ctrl = getControl();
-        if (ctrl && ctrl.getConfigValue) {
-            const total = ctrl.getConfigValue(DAL.CFG_RAM_BYTES, 0);
-            const heap = ctrl.heapUsed as (() => number) | undefined;
-            if (total && heap) {
-                const used = heap();
-                return convertData(used, unit);
-            }
-        }
-        return 0;
+        const used = _ramUsage();
+        return convertData(used, unit);
     }
 
     /**
@@ -99,8 +90,7 @@ namespace microUtilities {
      */
     //% block
     export function cpuUsage(): number {
-        const ctrl = getControl();
-        return ctrl && ctrl.getConfigValue ? ctrl.getConfigValue(DAL.CFG_CPU_MHZ, 0) : 0;
+        return _cpuUsage();
     }
 
     /**
@@ -108,10 +98,7 @@ namespace microUtilities {
      */
     //% block
     export function togglePixel(x: number, y: number): void {
-        const matrix = getLed();
-        if (!matrix) return;
-        if (matrix.point(x, y)) matrix.unplot(x, y);
-        else matrix.plot(x, y);
+        _togglePixel(x, y);
     }
 
     /**
@@ -119,10 +106,7 @@ namespace microUtilities {
      */
     //% block
     export function setPixel(x: number, y: number, on: boolean): void {
-        const matrix = getLed();
-        if (!matrix) return;
-        if (on) matrix.plot(x, y);
-        else matrix.unplot(x, y);
+        _setPixel(x, y, on);
     }
 
     /**
@@ -130,9 +114,7 @@ namespace microUtilities {
      */
     //% block
     export function setPixelBrightness(x: number, y: number, brightness: number): void {
-        const matrix = getLed();
-        if (!matrix) return;
-        matrix.plotBrightness(x, y, brightness);
+        _setPixelBrightness(x, y, brightness);
     }
 
     /**
@@ -142,8 +124,6 @@ namespace microUtilities {
      */
     //% block
     export function showImage(image: (string | number)[][]): void {
-        const matrix = getLed();
-        if (!matrix) return;
         for (let y = 0; y < 5; y++) {
             for (let x = 0; x < 5; x++) {
                 const row = image[y];
@@ -156,8 +136,7 @@ namespace microUtilities {
                         v = isNaN(n) ? 0 : Math.max(0, Math.min(255, n));
                     }
                 }
-                if (v) matrix.plotBrightness(x, y, v);
-                else matrix.unplot(x, y);
+                _setPixelBrightness(x, y, v);
             }
         }
     }
