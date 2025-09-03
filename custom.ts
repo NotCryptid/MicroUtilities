@@ -4,8 +4,9 @@
  */
 
 // Access runtime services dynamically so this package compiles across targets
-declare const control: any;
-declare const led: any;
+declare var control: any;
+declare var led: any;
+declare var DAL: any;
 
 function getControl(): any {
     return typeof control !== "undefined" ? control : undefined;
@@ -14,7 +15,7 @@ function getControl(): any {
 // Access the LED matrix dynamically without hard references so this package
 // compiles on Arcade devices where the `led` namespace isn't available.
 function getLed(): any {
-    return typeof led !== "undefined" && typeof led.plot === "function" ? led : undefined;
+    return typeof led !== "undefined" && typeof (led as any).plot === "function" ? (led as any) : undefined;
 }
 
 //% weight=90 color=#6d009c icon=""
