@@ -1,3 +1,21 @@
+// Native shims implemented in C++
+//% shim=microUtilities::_storageCapacity
+declare function _storageCapacity(): number;
+//% shim=microUtilities::_storageUsage
+declare function _storageUsage(): number;
+//% shim=microUtilities::_ramUsage
+declare function _ramUsage(): number;
+//% shim=microUtilities::_ramCapacity
+declare function _ramCapacity(): number;
+//% shim=microUtilities::_cpuUsage
+declare function _cpuSpeed(): number;
+//% shim=microUtilities::_togglePixel
+declare function _togglePixel(x: number, y: number): void;
+//% shim=microUtilities::_setPixel
+declare function _setPixel(x: number, y: number, on: boolean): void;
+//% shim=microUtilities::_setPixelBrightness
+declare function _setPixelBrightness(x: number, y: number, brightness: number): void;
+
 enum StorageUnit {
     Bytes,
     Kilobytes,
@@ -71,7 +89,7 @@ namespace microUtilities {
      */
     //% blockId=microUtilities_cpuSpeed block="CPU speed"
     export function cpuSpeed(): number {
-        return _cpuUsage();
+        return _cpuSpeed();
     }
 
     /**
@@ -89,7 +107,7 @@ namespace microUtilities {
     //% blockId=microUtilities_setPixel block="set pixel at x %x y %y to %on"
     //% x.min=0 x.max=4 y.min=0 y.max=4
     export function setPixel(x: number, y: number, on: boolean): void {
-        _setPixel(x | 0, y | 0, on ? 1 : 0);
+        _setPixel(x | 0, y | 0, on ? true : false);
     }
 
     /**
