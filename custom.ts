@@ -1,142 +1,118 @@
-/**
- * Utilities for querying system metrics and controlling the micro:bit LED matrix.
- * LED helpers become no-ops on targets without a built-in 5x5 matrix (e.g. Arcade boards).
- */
+enum StorageUnit {
+    Bytes,
+    Kilobytes,
+    Megabytes
+}
 
-// Native shims implemented in C++
-//% shim=microUtilities::_storageCapacity
-declare function _storageCapacity(): number;
-//% shim=microUtilities::_storageUsage
-declare function _storageUsage(): number;
-//% shim=microUtilities::_ramUsage
-declare function _ramUsage(): number;
-//% shim=microUtilities::_cpuUsage
-declare function _cpuUsage(): number;
-//% shim=microUtilities::_togglePixel
-declare function _togglePixel(x: number, y: number): void;
-//% shim=microUtilities::_setPixel
-declare function _setPixel(x: number, y: number, on: boolean): void;
-//% shim=microUtilities::_setPixelBrightness
-declare function _setPixelBrightness(x: number, y: number, brightness: number): void;
-
-//% weight=90 color=#6d009c icon=""
+//% weight=100 color=#2F5597 icon="\uf0a0"
 namespace microUtilities {
-    export enum DataUnit {
-        //% block="bytes"
-        Bytes,
-        //% block="KB"
-        Kilobytes,
-        //% block="MB"
-        Megabytes
-    }
-
-    export enum StorageUnit {
-        //% block="bytes"
-        Bytes,
-        //% block="KB"
-        Kilobytes,
-        //% block="MB"
-        Megabytes,
-        //% block="GB"
-        Gigabytes
-    }
-
-    function convertData(value: number, unit: DataUnit): number {
+    /**
+     * Total non-volatile storage capacity.
+     * @param unit unit of measurement
+     */
+    //% blockId=microUtilities_storageCapacity block="storage capacity in %unit"
+    //% unit.defl=StorageUnit.Megabytes
+    export function storageCapacity(unit: StorageUnit): number {
+        const cap = _storageCapacity();
         switch (unit) {
-            case DataUnit.Kilobytes: return value / 1024;
-            case DataUnit.Megabytes: return value / (1024 * 1024);
-            default: return value;
-        }
-    }
-
-    function convertStorage(value: number, unit: StorageUnit): number {
-        switch (unit) {
-            case StorageUnit.Kilobytes: return value / 1024;
-            case StorageUnit.Megabytes: return value / (1024 * 1024);
-            case StorageUnit.Gigabytes: return value / (1024 * 1024 * 1024);
-            default: return value;
+            case StorageUnit.Bytes: return cap;
+            case StorageUnit.Kilobytes: return cap / 1024;
+            case StorageUnit.Megabytes: return cap / (1024 * 1024);
         }
     }
 
     /**
-     * Total flash storage capacity.
+     * Used non-volatile storage.
+     * @param unit unit of measurement
      */
-    //% block="storage capacity in %unit" unit.defl=StorageUnit.Bytes
-    export function storageCapacity(unit: StorageUnit = StorageUnit.Bytes): number {
-        const bytes = _storageCapacity();
-        return convertStorage(bytes, unit);
+    //% blockId=microUtilities_storageUsage block="storage usage in %unit"
+    //% unit.defl=StorageUnit.Megabytes
+    export function storageUsage(unit: StorageUnit): number {
+        const used = _storageUsage();
+        switch (unit) {
+            case StorageUnit.Bytes: return used;
+            case StorageUnit.Kilobytes: return used / 1024;
+            case StorageUnit.Megabytes: return used / (1024 * 1024);
+        }
     }
 
     /**
-     * Flash used by the program.
+     * Total RAM capacity.
+     * @param unit unit of measurement
      */
-    //% block="storage usage in %unit" unit.defl=StorageUnit.Bytes
-    export function storageUsage(unit: StorageUnit = StorageUnit.Bytes): number {
-        const bytes = _storageUsage();
-        return convertStorage(bytes, unit);
+    //% blockId=microUtilities_ramCapacity block="RAM capacity in %unit"
+    //% unit.defl=StorageUnit.Kilobytes
+    export function ramCapacity(unit: StorageUnit): number {
+        const total = _ramCapacity();
+        switch (unit) {
+            case StorageUnit.Bytes: return total;
+            case StorageUnit.Kilobytes: return total / 1024;
+            case StorageUnit.Megabytes: return total / (1024 * 1024);
+        }
     }
 
     /**
-     * RAM currently used.
+     * Used RAM.
+     * @param unit unit of measurement
      */
-    //% block="RAM usage in %unit" unit.defl=DataUnit.Bytes
-    export function ramUsage(unit: DataUnit = DataUnit.Bytes): number {
+    //% blockId=microUtilities_ramUsage block="RAM usage in %unit"
+    //% unit.defl=StorageUnit.Kilobytes
+    export function ramUsage(unit: StorageUnit): number {
         const used = _ramUsage();
-        return convertData(used, unit);
+        switch (unit) {
+            case StorageUnit.Bytes: return used;
+            case StorageUnit.Kilobytes: return used / 1024;
+            case StorageUnit.Megabytes: return used / (1024 * 1024);
+        }
     }
 
     /**
-     * Approximate CPU speed in MHz.
+     * CPU speed in megahertz.
      */
-    //% block
-    export function cpuUsage(): number {
+    //% blockId=microUtilities_cpuSpeed block="CPU speed"
+    export function cpuSpeed(): number {
         return _cpuUsage();
     }
 
     /**
-     * Toggle an individual LED pixel.
+     * Toggle a pixel at x,y on the LED matrix.
      */
-    //% block
+    //% blockId=microUtilities_togglePixel block="toggle pixel at x %x y %y"
+    //% x.min=0 x.max=4 y.min=0 y.max=4
     export function togglePixel(x: number, y: number): void {
-        _togglePixel(x, y);
+        _togglePixel(x | 0, y | 0);
     }
 
     /**
-     * Turn an individual pixel on or off.
+     * Set the state of a pixel at x,y.
      */
-    //% block
+    //% blockId=microUtilities_setPixel block="set pixel at x %x y %y to %on"
+    //% x.min=0 x.max=4 y.min=0 y.max=4
     export function setPixel(x: number, y: number, on: boolean): void {
-        _setPixel(x, y, on);
+        _setPixel(x | 0, y | 0, on ? 1 : 0);
     }
 
     /**
-     * Set brightness of a single pixel (0-255).
+     * Set the brightness of a pixel at x,y.
      */
-    //% block
+    //% blockId=microUtilities_setPixelBrightness block="set pixel at x %x y %y brightness %brightness"
+    //% x.min=0 x.max=4 y.min=0 y.max=4
+    //% brightness.min=0 brightness.max=255
     export function setPixelBrightness(x: number, y: number, brightness: number): void {
-        _setPixelBrightness(x, y, brightness);
+        _setPixelBrightness(x | 0, y | 0, brightness | 0);
     }
 
     /**
-     * Display an image represented by a 5x5 brightness array.
-     * Each entry should be "0"-"255" or "#" for full brightness.
-     * The outer array contains rows and the inner arrays contain columns.
+     * Set the LED matrix to an image.
      */
-    //% block
-    export function showImage(image: (string | number)[][]): void {
-        for (let y = 0; y < 5; y++) {
-            for (let x = 0; x < 5; x++) {
-                const row = image[y];
-                const cell = row ? row[x] : undefined;
-                let v = 0;
-                if (cell !== undefined && cell !== null) {
-                    if (cell === "#") v = 255;
-                    else {
-                        const n = typeof cell === "string" ? parseInt(cell) : cell;
-                        v = isNaN(n) ? 0 : Math.max(0, Math.min(255, n));
-                    }
-                }
-                _setPixelBrightness(x, y, v);
+    //% blockId=microUtilities_setImage block="set image %img"
+    //% imageLiteral=1
+    export function setImage(img: string): void {
+        const im = (<Image>(<any>img));
+        for (let cx = 0; cx < 5; cx++) {
+            for (let cy = 0; cy < 5; cy++) {
+                const v = im.pixel(cx, cy);
+                setPixelBrightness(cx, cy, v);
             }
         }
     }
