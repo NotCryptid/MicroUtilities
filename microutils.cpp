@@ -1,39 +1,71 @@
 #include "pxt.h"
-using namespace pxt;
 
-namespace microUtilities {
+// Provide runtime information about flash, RAM usage and CPU speed.
 
-static inline bool inRange(int v) { return (unsigned)v < 5u; }
-
-int _storageCapacity() { return getConfig(CFG_FLASH_BYTES, 0); }
-int _storageUsage() { return programSize(); }
-
-int _ramUsage() {
-    int total = getConfig(CFG_RAM_BYTES, 0);
-    if (!total) return 0;
-    int free = getFreeMemory();
-    if (free < 0) free = 0;
-    return total - free;
+static inline int32_t getFlashSize() {
+    int32_t flash = pxt::getConfig(pxt::CFG_FLASH_BYTES, 0);
+    if (flash <= 0) {
+#if defined(MICROBIT_V2)
+        flash = 512 * 1024;
+#else
+        flash = 256 * 1024;
+#endif
+    }
+    return flash;
 }
 
-int _cpuUsage() { return getConfig(CFG_CPU_MHZ, 0); }
-
-void _togglePixel(int x, int y) {
-    if (!inRange(x) || !inRange(y)) return;
-    auto &img = uBit.display.image;
-    int v = img.getPixelValue(x, y);
-    img.setPixelValue(x, y, v ? 0 : 255);
+extern "C" {
+int32_t _storageCapacity() {
+    return getFlashSize();
 }
 
-void _setPixel(int x, int y, bool on) {
-    if (!inRange(x) || !inRange(y)) return;
+int32_t _storageUsage() {
+    return (int32_t)pxt::programSize();
+}
+
+int32_t _ramUsage() {
+    int32_t total = pxt::getConfig(pxt::CFG_RAM_BYTES, 0);
+    if (total <= 0) {
+#if defined(MICROBIT_V2)
+        total = 128 * 1024;
+#else
+        total = 16 * 1024;
+#endif
+    }
+    int32_t freeMem = (int32_t)pxt::getFreeMemory();
+    int32_t used = total - freeMem;
+    if (used < 0)
+        used = 0;
+    return used;
+}
+
+int32_t _cpuUsage() {
+    int32_t cpu = pxt::getConfig(pxt::CFG_CPU_MHZ, 0);
+    if (cpu <= 0) {
+#if defined(MICROBIT_V2)
+        cpu = 64;
+#else
+        cpu = 16;
+#endif
+    }
+    return cpu;
+}
+
+void _togglePixel(int32_t x, int32_t y) {
+    auto img = uBit.display.image.pixels;
+    auto v = img[x + y * MICROBIT_DISPLAY_WIDTH];
+    uBit.display.image.setPixelValue(x, y, v ? 0 : 255);
+}
+
+void _setPixel(int32_t x, int32_t y, int32_t on) {
     uBit.display.image.setPixelValue(x, y, on ? 255 : 0);
 }
 
-void _setPixelBrightness(int x, int y, int b) {
-    if (!inRange(x) || !inRange(y)) return;
-    if (b < 0) b = 0; else if (b > 255) b = 255;
-    uBit.display.image.setPixelValue(x, y, b);
+void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
+    if (brightness < 0)
+        brightness = 0;
+    else if (brightness > 255)
+        brightness = 255;
+    uBit.display.image.setPixelValue(x, y, brightness);
 }
-
 }
