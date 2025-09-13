@@ -39,6 +39,19 @@ int32_t _ramUsage() {
     return used;
 }
 
+int32_t _ramCapacity() {
+    int32_t total = pxt::getConfig(pxt::CFG_RAM_BYTES, 0);
+    if (total <= 0) {
+#if defined(MICROBIT_V2)
+        total = 128 * 1024;
+#else
+        total = 16 * 1024;
+#endif
+    }
+    int32_t freeMem = (int32_t)pxt::getFreeMemory();
+    return freeMem;
+}
+
 int32_t _cpuUsage() {
     int32_t cpu = pxt::getConfig(pxt::CFG_CPU_MHZ, 0);
     if (cpu <= 0) {
