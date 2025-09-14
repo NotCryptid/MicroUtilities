@@ -119,19 +119,4 @@ namespace microUtilities {
     export function setPixelBrightness(x: number, y: number, brightness: number): void {
         _setPixelBrightness(x | 0, y | 0, brightness | 0);
     }
-
-    /**
-     * Set the LED matrix to an image.
-     */
-    //% blockId=microUtilities_setImage block="set image %img"
-    //% imageLiteral=1
-    export function setImage(img: string): void {
-        const im = (<Image>(<any>img));
-        for (let cx = 0; cx < 5; cx++) {
-            for (let cy = 0; cy < 5; cy++) {
-                const v = im.pixel(cx, cy);
-                setPixelBrightness(cx, cy, v);
-            }
-        }
-    }
 }
