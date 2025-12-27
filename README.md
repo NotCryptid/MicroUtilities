@@ -11,13 +11,13 @@ A set of useful tools for MakeCode Arcade
 - Obtaining RAM amount
 - Obtaining RAM usage
 - Writing to the Micro:bit led matrix
+- Detecting if device is a micro:bit
 
 ## Planned features
 - Rotating sprites in 90 degree intervals
-- Detecting if device is a micro:bit
 - Obtaining the micro:bit's serial number
 - Reading and writing to the usb port
-- Arcade and Micro:bit interconectivity via radio
+- Unrestricted bitradio usage
 
 ## Use as Extension
 
