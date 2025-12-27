@@ -14,7 +14,7 @@ static inline int32_t getFlashSize() {
     return flash;
 }
 
-extern "C" {
+namespace microUtilities {
 int32_t _storageCapacity() {
     return getFlashSize();
 }

@@ -12,7 +12,7 @@ namespace microUtilities {
         return 0;
     }
     export function cpuSpeed(): number {
-        return 0;
+        return 2300;
     }
     export function togglePixel(x: number, y: number): void {
         // no-op
