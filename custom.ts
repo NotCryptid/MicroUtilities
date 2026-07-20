@@ -1,22 +1,45 @@
-// Native shims implemented in C++
+// Native shims implemented in C++. Each keeps a plain TS body as a generic
+// placeholder for the web simulator: pxt only swaps in the native shim when
+// compiling for real hardware, so these values are what the browser sim
+// shows instead of an "unimplemented" stub.
+const _simPixels: boolean[][] = [[false, false, false, false, false], [false, false, false, false, false], [false, false, false, false, false], [false, false, false, false, false], [false, false, false, false, false]];
+
 //% shim=microUtilities::_storageCapacity
-declare function _storageCapacity(): number;
+function _storageCapacity(): number {
+    return 512 * 1024;
+}
 //% shim=microUtilities::_storageUsage
-declare function _storageUsage(): number;
+function _storageUsage(): number {
+    return 128 * 1024;
+}
 //% shim=microUtilities::_ramUsage
-declare function _ramUsage(): number;
+function _ramUsage(): number {
+    return 32 * 1024;
+}
 //% shim=microUtilities::_ramCapacity
-declare function _ramCapacity(): number;
+function _ramCapacity(): number {
+    return 128 * 1024;
+}
 //% shim=microUtilities::_cpuSpeed
-declare function _cpuSpeed(): number;
+function _cpuSpeed(): number {
+    return 64;
+}
 //% shim=microUtilities::_togglePixel
-declare function _togglePixel(x: number, y: number): void;
+function _togglePixel(x: number, y: number): void {
+    _simPixels[y][x] = !_simPixels[y][x];
+}
 //% shim=microUtilities::_setPixel
-declare function _setPixel(x: number, y: number, on: boolean): void;
+function _setPixel(x: number, y: number, on: boolean): void {
+    _simPixels[y][x] = on;
+}
 //% shim=microUtilities::_setPixelBrightness
-declare function _setPixelBrightness(x: number, y: number, brightness: number): void;
+function _setPixelBrightness(x: number, y: number, brightness: number): void {
+    _simPixels[y][x] = brightness > 0;
+}
 //% shim=microUtilities::_isMicrobit
-declare function _isMicrobit(): boolean;
+function _isMicrobit(): boolean {
+    return false;
+}
 
 enum StorageUnit {
     Bytes,
@@ -38,6 +61,7 @@ namespace microUtilities {
             case StorageUnit.Bytes: return cap;
             case StorageUnit.Kilobytes: return cap / 1024;
             case StorageUnit.Megabytes: return cap / (1024 * 1024);
+            default: return cap;
         }
     }
 
@@ -53,6 +77,7 @@ namespace microUtilities {
             case StorageUnit.Bytes: return used;
             case StorageUnit.Kilobytes: return used / 1024;
             case StorageUnit.Megabytes: return used / (1024 * 1024);
+            default: return used;
         }
     }
 
@@ -68,6 +93,7 @@ namespace microUtilities {
             case StorageUnit.Bytes: return total;
             case StorageUnit.Kilobytes: return total / 1024;
             case StorageUnit.Megabytes: return total / (1024 * 1024);
+            default: return total;
         }
     }
 
@@ -83,6 +109,7 @@ namespace microUtilities {
             case StorageUnit.Bytes: return used;
             case StorageUnit.Kilobytes: return used / 1024;
             case StorageUnit.Megabytes: return used / (1024 * 1024);
+            default: return used;
         }
     }
 

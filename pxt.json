@@ -2,8 +2,7 @@
     "name": "MicroUtilities",
     "description": "",
     "dependencies": {
-        "core": "*",
-        "microphone": "*"
+        "core": "*"
     },
     "files": [
         "README.md",
@@ -13,8 +12,8 @@
     ],
     "testFiles": [],
     "targetVersions": {
-        "target": "4.0.14",
-        "targetId": "arcade"
+        "target": "9.1.1",
+        "targetId": "microbit"
     },
     "supportedTargets": [
         "microbit",
