@@ -7,7 +7,7 @@ declare function _storageUsage(): number;
 declare function _ramUsage(): number;
 //% shim=microUtilities::_ramCapacity
 declare function _ramCapacity(): number;
-//% shim=microUtilities::_cpuUsage
+//% shim=microUtilities::_cpuSpeed
 declare function _cpuSpeed(): number;
 //% shim=microUtilities::_togglePixel
 declare function _togglePixel(x: number, y: number): void;
@@ -15,6 +15,8 @@ declare function _togglePixel(x: number, y: number): void;
 declare function _setPixel(x: number, y: number, on: boolean): void;
 //% shim=microUtilities::_setPixelBrightness
 declare function _setPixelBrightness(x: number, y: number, brightness: number): void;
+//% shim=microUtilities::_isMicrobit
+declare function _isMicrobit(): boolean;
 
 enum StorageUnit {
     Bytes,
@@ -93,7 +95,8 @@ namespace microUtilities {
     }
 
     /**
-     * Toggle a pixel at x,y on the LED matrix.
+     * Toggle a pixel at x,y on the LED matrix. Has no effect on devices
+     * that aren't a micro:bit; use isMicrobit to check first.
      */
     //% blockId=microUtilities_togglePixel block="toggle pixel at x %x y %y"
     //% x.min=0 x.max=4 y.min=0 y.max=4
@@ -102,7 +105,8 @@ namespace microUtilities {
     }
 
     /**
-     * Set the state of a pixel at x,y.
+     * Set the state of a pixel at x,y. Has no effect on devices that
+     * aren't a micro:bit; use isMicrobit to check first.
      */
     //% blockId=microUtilities_setPixel block="set pixel at x %x y %y to %on"
     //% x.min=0 x.max=4 y.min=0 y.max=4
@@ -111,12 +115,21 @@ namespace microUtilities {
     }
 
     /**
-     * Set the brightness of a pixel at x,y.
+     * Set the brightness of a pixel at x,y. Has no effect on devices
+     * that aren't a micro:bit; use isMicrobit to check first.
      */
     //% blockId=microUtilities_setPixelBrightness block="set pixel at x %x y %y brightness %brightness"
     //% x.min=0 x.max=4 y.min=0 y.max=4
     //% brightness.min=0 brightness.max=255
     export function setPixelBrightness(x: number, y: number, brightness: number): void {
         _setPixelBrightness(x | 0, y | 0, brightness | 0);
+    }
+
+    /**
+     * True if this device is a BBC micro:bit, false for other Arcade hardware.
+     */
+    //% blockId=microUtilities_isMicrobit block="is micro:bit"
+    export function isMicrobit(): boolean {
+        return _isMicrobit();
     }
 }

@@ -2,16 +2,17 @@
 A set of useful tools for MakeCode Arcade
 
 ## Implemented features
-- none yet T-T
-
-## Features in the works
 - Obtaining storage capacity
 - Obtaining taken up storage
 - Obtaining CPU clock speed
 - Obtaining RAM amount
 - Obtaining RAM usage
-- Writing to the Micro:bit led matrix
+- Writing to the micro:bit LED matrix
 - Detecting if device is a micro:bit
+
+These run as native code, so they only report real values on actual hardware
+(micro:bit or other Arcade boards) — the browser simulator has no native
+implementation to fall back to.
 
 ## Planned features
 - Rotating sprites in 90 degree intervals
