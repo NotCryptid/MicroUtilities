@@ -116,35 +116,35 @@ static inline double getRamSize() {
 
 namespace microUtilities {
 //%
-double _storageCapacity() {
-    return getFlashSize();
+TNumber _storageCapacity() {
+    return fromDouble(getFlashSize());
 }
 
 //%
-double _storageUsage() {
+TNumber _storageUsage() {
     // programSize() is `unsigned`; cast straight to double instead of
     // int32_t so program sizes past 2GB don't wrap negative.
-    return (double)pxt::programSize();
+    return fromDouble((double)pxt::programSize());
 }
 
 //%
-double _ramCapacity() {
-    return getRamSize();
+TNumber _ramCapacity() {
+    return fromDouble(getRamSize());
 }
 
 //%
-double _ramUsage() {
+TNumber _ramUsage() {
     Buffer stats = pxt::getGCStats();
     if (!stats || PXT_BUFFER_LENGTH(stats) < 24)
-        return 0;
+        return fromDouble(0);
     const uint32_t *fields = (const uint32_t *)PXT_BUFFER_DATA(stats);
     uint32_t totalBytes = fields[2];
     uint32_t lastFreeBytes = fields[3];
     if (lastFreeBytes > totalBytes)
-        return 0;
+        return fromDouble(0);
     // Subtract as uint32_t, then widen to double -- casting the difference
     // to int32_t instead would flip negative once usage passed 2GB.
-    return (double)(totalBytes - lastFreeBytes);
+    return fromDouble((double)(totalBytes - lastFreeBytes));
 }
 
 //%
