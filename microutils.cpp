@@ -1,20 +1,84 @@
-#include "pxt.h"
-
 // Report flash, RAM and CPU info, and (on micro:bit only) drive the LED matrix.
 //
-// MICROUTILITIES_HAS_MICROBIT is true when this file is being compiled against
-// a micro:bit core (classic DAL or codal-microbit-v2), both of which ship a
-// top-level "MicroBit.h". Other Arcade hardware targets (samd21, stm32, ...)
-// never provide that header, so this reliably tells the two apart at compile
-// time without depending on internal target build flags.
-#if defined(__has_include)
-#if __has_include("MicroBit.h")
+// Three build configurations reach this file:
+//  1. Plain pxt-microbit target: MicroBit.h is available and safe to include
+//     directly; the LED functions use the normal uBit.display API.
+//  2. Arcade compiled against a micro:bit board (e.g. the Newbit shield,
+//     hw---n3): the hw variant sets ARCADE_MBIT_CODAL=1. Arcade's own
+//     core---nrf52/platform.h typedefs a global PinName as uint8_t and
+//     #defines raw pin macros (P0_0, P0_1, ...), which directly conflicts
+//     with codal-microbit-v2's own enum PinName in MicroBitIO.h, so
+//     MicroBit.h cannot be included in this translation unit at all (tried:
+//     reordering the includes only trades that conflict for a "expected
+//     identifier" parse error; wrapping the include in a namespace avoids
+//     the PinName clash but breaks libstdc++, since MicroBit.h pulls in
+//     <cstdlib> and namespacing that hides ::abs/::malloc/etc from it).
+//     Instead we drive the same physical LED matrix hardware directly,
+//     using the micro:bit V2's known row/column GPIO wiring (lifted from
+//     codal-microbit-v2's own MicroBitIO.cpp) and the low-level
+//     NRF52LEDMatrix driver class, which depends only on generic codal-core
+//     types and never touches PinName.
+//  3. Any other Arcade hardware (samd21, stm32, ...): no micro:bit present.
+#if defined(ARCADE_MBIT_CODAL) && ARCADE_MBIT_CODAL
 #define MICROUTILITIES_HAS_MICROBIT 1
+#define MICROUTILITIES_ARCADE_MBIT 1
+#elif defined(__has_include) && __has_include("MicroBit.h")
+#define MICROUTILITIES_HAS_MICROBIT 1
+#define MICROUTILITIES_ARCADE_MBIT 0
 #include "MicroBit.h"
-#endif
-#endif
-#ifndef MICROUTILITIES_HAS_MICROBIT
+#else
 #define MICROUTILITIES_HAS_MICROBIT 0
+#define MICROUTILITIES_ARCADE_MBIT 0
+#endif
+
+#include "pxt.h"
+
+#if MICROUTILITIES_ARCADE_MBIT
+#include "NRF52LedMatrix.h"
+#include "NRF52Pin.h"
+#include "NRFLowLevelTimer.h"
+
+using namespace codal;
+
+// Row/column GPIO wiring for the micro:bit V2's 5x5 LED matrix, as wired up
+// by codal-microbit-v2's MicroBitIO.cpp. P0_xx/P1_xx here are the plain
+// integer pin-index macros Arcade's own core---nrf52/platform.h defines
+// (port*32 + pin), which is exactly the raw codal::PinNumber NRF52Pin expects
+// -- no PinName enum involved.
+static NRF52Pin mbitRowPins[5] = {
+    NRF52Pin(6001, P0_21, PIN_CAPABILITY_AD),
+    NRF52Pin(6002, P0_22, PIN_CAPABILITY_AD),
+    NRF52Pin(6003, P0_15, PIN_CAPABILITY_AD),
+    NRF52Pin(6004, P0_24, PIN_CAPABILITY_AD),
+    NRF52Pin(6005, P0_19, PIN_CAPABILITY_AD),
+};
+static NRF52Pin mbitColPins[5] = {
+    NRF52Pin(6006, P0_28, PIN_CAPABILITY_AD),
+    NRF52Pin(6007, P0_11, PIN_CAPABILITY_AD),
+    NRF52Pin(6008, P0_31, PIN_CAPABILITY_AD),
+    NRF52Pin(6009, P1_5, PIN_CAPABILITY_AD),
+    NRF52Pin(6010, P0_30, PIN_CAPABILITY_AD),
+};
+static Pin *mbitRowPinPtrs[5] = {&mbitRowPins[0], &mbitRowPins[1], &mbitRowPins[2], &mbitRowPins[3],
+                                 &mbitRowPins[4]};
+static Pin *mbitColPinPtrs[5] = {&mbitColPins[0], &mbitColPins[1], &mbitColPins[2], &mbitColPins[3],
+                                 &mbitColPins[4]};
+static const MatrixPoint mbitMatrixPositions[5 * 5] = {
+    {0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}, {1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4},
+    {2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4},
+    {4, 0}, {4, 1}, {4, 2}, {4, 3}, {4, 4},
+};
+static const MatrixMap mbitMatrixMap = {5, 5, 5, 5, mbitRowPinPtrs, mbitColPinPtrs, mbitMatrixPositions};
+
+static NRF52LEDMatrix &arcadeMbitDisplay() {
+    // Lazily constructed: NRF_TIMER4/TIMER4_IRQn matches what codal-microbit-v2's
+    // own MicroBitDisplay hardcodes on the plain micro:bit target. Arcade's
+    // generic timer allocator (core---nrf52/platform.cpp) only pulls from
+    // TIMER0-3 by default, so TIMER4 is left free for this.
+    static NRFLowLevelTimer timer(NRF_TIMER4, TIMER4_IRQn);
+    static NRF52LEDMatrix display(timer, mbitMatrixMap, 6011, DisplayMode::DISPLAY_MODE_GREYSCALE);
+    return display;
+}
 #endif
 
 namespace pxt {
@@ -86,7 +150,25 @@ int _isMicrobit() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
 
-#if MICROUTILITIES_HAS_MICROBIT
+#if MICROUTILITIES_ARCADE_MBIT
+void _togglePixel(int32_t x, int32_t y) {
+    auto &img = arcadeMbitDisplay().image;
+    auto v = img.getPixelValue(x, y);
+    img.setPixelValue(x, y, v ? 0 : 255);
+}
+
+void _setPixel(int32_t x, int32_t y, int32_t on) {
+    arcadeMbitDisplay().image.setPixelValue(x, y, on ? 255 : 0);
+}
+
+void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
+    if (brightness < 0)
+        brightness = 0;
+    else if (brightness > 255)
+        brightness = 255;
+    arcadeMbitDisplay().image.setPixelValue(x, y, brightness);
+}
+#elif MICROUTILITIES_HAS_MICROBIT
 void _togglePixel(int32_t x, int32_t y) {
     auto img = uBit.display.image;
     auto v = img.getPixelValue(x, y);
