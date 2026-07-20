@@ -110,18 +110,22 @@ static inline int32_t getRamSize() {
 }
 
 namespace microUtilities {
+//%
 int32_t _storageCapacity() {
     return getFlashSize();
 }
 
+//%
 int32_t _storageUsage() {
     return (int32_t)pxt::programSize();
 }
 
+//%
 int32_t _ramCapacity() {
     return getRamSize();
 }
 
+//%
 int32_t _ramUsage() {
     Buffer stats = pxt::getGCStats();
     if (!stats || PXT_BUFFER_LENGTH(stats) < 24)
@@ -134,6 +138,7 @@ int32_t _ramUsage() {
     return (int32_t)(totalBytes - lastFreeBytes);
 }
 
+//%
 int32_t _cpuSpeed() {
     int32_t cpu = pxt::getConfig(CFG_CPU_MHZ, 0);
     if (cpu <= 0) {
@@ -146,21 +151,25 @@ int32_t _cpuSpeed() {
     return cpu;
 }
 
+//%
 int _isMicrobit() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
 
 #if MICROUTILITIES_ARCADE_MBIT
+//%
 void _togglePixel(int32_t x, int32_t y) {
     auto &img = arcadeMbitDisplay().image;
     auto v = img.getPixelValue(x, y);
     img.setPixelValue(x, y, v ? 0 : 255);
 }
 
+//%
 void _setPixel(int32_t x, int32_t y, int32_t on) {
     arcadeMbitDisplay().image.setPixelValue(x, y, on ? 255 : 0);
 }
 
+//%
 void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
     if (brightness < 0)
         brightness = 0;
@@ -169,16 +178,19 @@ void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
     arcadeMbitDisplay().image.setPixelValue(x, y, brightness);
 }
 #elif MICROUTILITIES_HAS_MICROBIT
+//%
 void _togglePixel(int32_t x, int32_t y) {
     auto img = uBit.display.image;
     auto v = img.getPixelValue(x, y);
     img.setPixelValue(x, y, v ? 0 : 255);
 }
 
+//%
 void _setPixel(int32_t x, int32_t y, int32_t on) {
     uBit.display.image.setPixelValue(x, y, on ? 255 : 0);
 }
 
+//%
 void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
     if (brightness < 0)
         brightness = 0;
@@ -188,8 +200,11 @@ void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {
 }
 #else
 // No LED matrix on non-micro:bit Arcade hardware; these become harmless no-ops.
+//%
 void _togglePixel(int32_t x, int32_t y) {}
+//%
 void _setPixel(int32_t x, int32_t y, int32_t on) {}
+//%
 void _setPixelBrightness(int32_t x, int32_t y, int32_t brightness) {}
 #endif
 }
