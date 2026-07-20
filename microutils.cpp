@@ -114,6 +114,29 @@ static inline double getRamSize() {
     return (double)(uint32_t)ram;
 }
 
+// settings.cpp (pxt_modules/settings) carves a fixed slice out of the top of flash for its
+// key/value store -- taken out of the program's usable storage whether or not anything has
+// actually been written there yet -- plus, on top of that, a separate "large store" region for
+// big binary blobs (eg ML models) when one doesn't overlap the program. Neither of those is
+// part of pxt::programSize(), so _storageUsage() undercounts real flash usage without them.
+// largeStoreStart()/largeStoreSize() have external linkage in settings.cpp already (no `static`),
+// so they can be called directly without editing that (gitignored, regenerated) file.
+namespace settings {
+uintptr_t largeStoreStart();
+size_t largeStoreSize();
+}
+
+static inline double getSettingsSize() {
+#if defined(SAMD21)
+    uint32_t deflt = 2 * 1024;
+#else
+    uint32_t deflt = 32 * 1024;
+#endif
+    uint32_t size = (uint32_t)pxt::getConfig(CFG_SETTINGS_SIZE_DEFL, deflt);
+    uint32_t override_ = (uint32_t)pxt::getConfig(CFG_SETTINGS_SIZE, 0);
+    return (double)(override_ > 0 ? override_ : size);
+}
+
 namespace microUtilities {
 //%
 TNumber _storageCapacity() {
@@ -124,7 +147,10 @@ TNumber _storageCapacity() {
 TNumber _storageUsage() {
     // programSize() is `unsigned`; cast straight to double instead of
     // int32_t so program sizes past 2GB don't wrap negative.
-    return fromDouble((double)pxt::programSize());
+    double used = (double)pxt::programSize() + getSettingsSize();
+    if (settings::largeStoreStart())
+        used += (double)settings::largeStoreSize();
+    return fromDouble(used);
 }
 
 //%
