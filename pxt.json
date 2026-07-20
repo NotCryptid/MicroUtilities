@@ -2,7 +2,7 @@
     "name": "MicroUtilities",
     "description": "",
     "dependencies": {
-        "core": "*"
+        "device": "*"
     },
     "files": [
         "README.md",
