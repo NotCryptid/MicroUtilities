@@ -12,8 +12,8 @@
     ],
     "testFiles": [],
     "targetVersions": {
-        "target": "9.1.1",
-        "targetId": "microbit"
+        "target": "4.0.14",
+        "targetId": "arcade"
     },
     "supportedTargets": [
         "microbit",
