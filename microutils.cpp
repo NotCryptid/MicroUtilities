@@ -85,48 +85,55 @@ namespace pxt {
 Buffer getGCStats();
 }
 
-static inline int32_t getFlashSize() {
+// getConfig() only hands back a signed 32-bit int, so a config value whose
+// top bit is set (i.e. between 2GB and 4GB) comes back negative; reinterpret
+// it as uint32_t rather than clamping it away, and hand it back as double so
+// the TS side can represent the full 0..4GB range exactly (doubles are exact
+// for all integers up to 2^53).
+static inline double getFlashSize() {
     int32_t flash = pxt::getConfig(CFG_FLASH_BYTES, 0);
-    if (flash <= 0) {
+    if (flash == 0) {
 #if MICROUTILITIES_HAS_MICROBIT
-        flash = 512 * 1024;
+        return 512.0 * 1024;
 #else
-        flash = 256 * 1024;
+        return 256.0 * 1024;
 #endif
     }
-    return flash;
+    return (double)(uint32_t)flash;
 }
 
-static inline int32_t getRamSize() {
+static inline double getRamSize() {
     int32_t ram = pxt::getConfig(CFG_RAM_BYTES, 0);
-    if (ram <= 0) {
+    if (ram == 0) {
 #if MICROUTILITIES_HAS_MICROBIT
-        ram = 128 * 1024;
+        return 128.0 * 1024;
 #else
-        ram = 16 * 1024;
+        return 16.0 * 1024;
 #endif
     }
-    return ram;
+    return (double)(uint32_t)ram;
 }
 
 namespace microUtilities {
 //%
-int32_t _storageCapacity() {
+double _storageCapacity() {
     return getFlashSize();
 }
 
 //%
-int32_t _storageUsage() {
-    return (int32_t)pxt::programSize();
+double _storageUsage() {
+    // programSize() is `unsigned`; cast straight to double instead of
+    // int32_t so program sizes past 2GB don't wrap negative.
+    return (double)pxt::programSize();
 }
 
 //%
-int32_t _ramCapacity() {
+double _ramCapacity() {
     return getRamSize();
 }
 
 //%
-int32_t _ramUsage() {
+double _ramUsage() {
     Buffer stats = pxt::getGCStats();
     if (!stats || PXT_BUFFER_LENGTH(stats) < 24)
         return 0;
@@ -135,7 +142,9 @@ int32_t _ramUsage() {
     uint32_t lastFreeBytes = fields[3];
     if (lastFreeBytes > totalBytes)
         return 0;
-    return (int32_t)(totalBytes - lastFreeBytes);
+    // Subtract as uint32_t, then widen to double -- casting the difference
+    // to int32_t instead would flip negative once usage passed 2GB.
+    return (double)(totalBytes - lastFreeBytes);
 }
 
 //%
