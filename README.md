@@ -10,10 +10,6 @@ A set of useful tools for MakeCode Arcade
 - Writing to the micro:bit LED matrix
 - Detecting if device is a micro:bit
 
-These run as native code, so they only report real values on actual hardware
-(micro:bit or other Arcade boards) — the browser simulator has no native
-implementation to fall back to.
-
 ## Planned features
 - Rotating sprites in 90 degree intervals
 - Obtaining the micro:bit's serial number
