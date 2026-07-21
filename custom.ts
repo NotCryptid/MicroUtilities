@@ -159,4 +159,14 @@ namespace microUtilities {
     export function isMicrobit(): boolean {
         return _isMicrobit();
     }
+
+    /**
+     * The device's unique hardware serial number, as an 8-character hex string.
+     */
+    //% blockId=microUtilities_serialNumber block="serial number"
+    export function serialNumber(): string {
+        const buf = Buffer.create(4);
+        buf.setNumber(NumberFormat.UInt32BE, 0, control.deviceSerialNumber());
+        return buf.toHex().toUpperCase();
+    }
 }

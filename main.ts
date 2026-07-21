@@ -7,3 +7,8 @@ game.splash(microUtilities.ramUsage(StorageUnit.Kilobytes) + "kb ram used")
 if (microUtilities.isMicrobit()) {
     game.splash("you r microbit")
 }
+game.splash("serial " + microUtilities.serialNumber())
+microUtilities.onUnrestrictedStringReceived(function (value) {
+    game.splash("got: " + value)
+})
+microUtilities.sendUnrestrictedString("this is much longer than a single radio packet can normally hold")
