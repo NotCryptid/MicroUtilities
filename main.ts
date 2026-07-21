@@ -11,4 +11,7 @@ game.splash("serial " + microUtilities.serialNumber())
 microUtilities.onUnrestrictedStringReceived(function (value) {
     game.splash("got: " + value)
 })
+microUtilities.onUnrestrictedStringLost(function (receivedChunks, totalChunks) {
+    game.splash("lost message, got " + receivedChunks + "/" + totalChunks + " chunks")
+})
 microUtilities.sendUnrestrictedString("this is much longer than a single radio packet can normally hold")

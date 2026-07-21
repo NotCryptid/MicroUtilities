@@ -13,18 +13,31 @@
 // sides pop packets off the same native queue when a radio event fires, so
 // whichever handler happens to run first can drain packets meant for the
 // other one.
+//
+// Like the rest of the radio package, sending is fire-and-forget: there's
+// no ACK and no retry, so a dropped packet just means one missing chunk.
+// onUnrestrictedStringLost reports when that happens (after a 4s timeout)
+// so the app can react, but recovering the lost data is left to the caller
+// (eg. having the sender resend on request).
 namespace microUtilities {
     // Keep in sync with the "radio" package's own RADIO_MAX_PACKET_SIZE --
     // this is the hard cap codal's radio driver accepts per packet.
     const _RADIO_MAX_PACKET_SIZE = 32;
     // Chunk header layout: [0] marker (keeps our packets from being
     // misread as one of the stock package's packet types, which use 0-5)
-    // [1] message id [2] chunk index [3] chunk count [4] chunk length
-    const _CHUNK_HEADER_SIZE = 5;
+    // [1..2] sender id [3] message id [4] chunk index [5] chunk count
+    // [6] chunk length
+    //
+    // The sender id (low 16 bits of the device's serial number) plus the
+    // message id disambiguate which in-flight message a chunk belongs to,
+    // so that two devices sending at the same time -- which, with just a
+    // one-byte message id, would likely pick the same id -- don't get
+    // their chunks reassembled into one another's messages.
+    const _CHUNK_HEADER_SIZE = 7;
     const _CHUNK_MARKER = 0xF0;
     const _CHUNK_PAYLOAD_SIZE = _RADIO_MAX_PACKET_SIZE - _CHUNK_HEADER_SIZE;
     // Chunk index/count are single bytes, so a message can span at most
-    // this many chunks (~6.8KB at 27 bytes/chunk) -- longer strings are
+    // this many chunks (~6.4KB at 25 bytes/chunk) -- longer strings are
     // truncated to fit.
     const _MAX_CHUNKS = 255;
     // Drop reassembly state for a message if a chunk hasn't shown up in
@@ -35,13 +48,32 @@ namespace microUtilities {
         chunks: Buffer[] = [];
         received = 0;
         lastSeen = 0;
-        constructor(public total: number) { }
+        constructor(public senderId: number, public messageId: number, public total: number) { }
     }
 
+    // Derived once from the device serial number: collisions between two
+    // devices are possible (1 in 65536) but unlikely, same tradeoff the
+    // stock radio package makes by defaulting radio.setTransmitSerialNumber
+    // to off.
+    let _senderId = -1;
     let _nextMessageId = 0;
     let _pending: _PendingMessage[] = [];
     let _onUnrestrictedStringReceived: (value: string) => void;
+    let _onUnrestrictedStringLost: (receivedChunks: number, totalChunks: number) => void;
     let _rawReceiveInitialized = false;
+
+    function _getSenderId(): number {
+        if (_senderId < 0) _senderId = control.deviceSerialNumber() & 0xffff;
+        return _senderId;
+    }
+
+    function _findPending(senderId: number, messageId: number): _PendingMessage {
+        for (let i = 0; i < _pending.length; i++) {
+            const p = _pending[i];
+            if (p.senderId === senderId && p.messageId === messageId) return p;
+        }
+        return undefined;
+    }
 
     function _initRawReceive() {
         if (_rawReceiveInitialized) return;
@@ -54,16 +86,23 @@ namespace microUtilities {
         let buf = radio.readRawPacket();
         while (buf) {
             if (buf.length >= _CHUNK_HEADER_SIZE && buf[0] === _CHUNK_MARKER) {
-                const messageId = buf[1];
-                const index = buf[2];
-                const total = buf[3];
-                const len = buf[4];
+                const senderId = (buf[1] << 8) | buf[2];
+                const messageId = buf[3];
+                const index = buf[4];
+                const total = buf[5];
+                const len = buf[6];
                 const chunk = buf.slice(_CHUNK_HEADER_SIZE, len);
 
-                let pending = _pending[messageId];
-                if (!pending || pending.total !== total) {
-                    pending = new _PendingMessage(total);
-                    _pending[messageId] = pending;
+                let pending = _findPending(senderId, messageId);
+                if (pending && pending.total !== total) {
+                    // message id wrapped around and got reused by the same
+                    // sender before the old message finished -- start over.
+                    _pending.removeElement(pending);
+                    pending = undefined;
+                }
+                if (!pending) {
+                    pending = new _PendingMessage(senderId, messageId, total);
+                    _pending.push(pending);
                 }
                 if (!pending.chunks[index]) {
                     pending.chunks[index] = chunk;
@@ -72,7 +111,7 @@ namespace microUtilities {
                 pending.lastSeen = now;
 
                 if (pending.received >= pending.total) {
-                    _pending[messageId] = undefined;
+                    _pending.removeElement(pending);
                     if (_onUnrestrictedStringReceived) {
                         _onUnrestrictedStringReceived(Buffer.concat(pending.chunks).toString());
                     }
@@ -81,10 +120,13 @@ namespace microUtilities {
             buf = radio.readRawPacket();
         }
 
-        for (let id = 0; id < _pending.length; id++) {
-            const pending = _pending[id];
-            if (pending && now - pending.lastSeen > _REASSEMBLY_TIMEOUT_MS) {
-                _pending[id] = undefined;
+        for (let i = _pending.length - 1; i >= 0; i--) {
+            const stale = _pending[i];
+            if (now - stale.lastSeen > _REASSEMBLY_TIMEOUT_MS) {
+                _pending.splice(i, 1);
+                if (_onUnrestrictedStringLost) {
+                    _onUnrestrictedStringLost(stale.received, stale.total);
+                }
             }
         }
     }
@@ -98,6 +140,7 @@ namespace microUtilities {
     export function sendUnrestrictedString(value: string): void {
         const chunks = Buffer.chunkedFromUTF8(value, _CHUNK_PAYLOAD_SIZE);
         const total = Math.min(Math.max(chunks.length, 1), _MAX_CHUNKS);
+        const senderId = _getSenderId();
         const messageId = _nextMessageId = (_nextMessageId + 1) % 256;
 
         for (let i = 0; i < total; i++) {
@@ -107,10 +150,12 @@ namespace microUtilities {
             // our real payload out by 4 bytes or its tail gets cut off.
             const packet = Buffer.create(_CHUNK_HEADER_SIZE + chunk.length + 4);
             packet[0] = _CHUNK_MARKER;
-            packet[1] = messageId;
-            packet[2] = i;
-            packet[3] = total;
-            packet[4] = chunk.length;
+            packet[1] = (senderId >> 8) & 0xff;
+            packet[2] = senderId & 0xff;
+            packet[3] = messageId;
+            packet[4] = i;
+            packet[5] = total;
+            packet[6] = chunk.length;
             packet.write(_CHUNK_HEADER_SIZE, chunk);
             radio.sendRawPacket(packet);
         }
@@ -125,5 +170,19 @@ namespace microUtilities {
     export function onUnrestrictedStringReceived(cb: (value: string) => void): void {
         _initRawReceive();
         _onUnrestrictedStringReceived = cb;
+    }
+
+    /**
+     * Registers code to run when a string sent with sendUnrestrictedString
+     * is abandoned because some of its packets never arrived (no chunk seen
+     * for 4 seconds). There's no retry -- this only tells you a message was
+     * dropped, with how much of it got through, so you can decide what to
+     * do (eg. ask the sender to try again).
+     */
+    //% blockId=microUtilities_onUnrestrictedStringLost block="on radio unrestricted string lost"
+    //% draggableParameters=reporter
+    export function onUnrestrictedStringLost(cb: (receivedChunks: number, totalChunks: number) => void): void {
+        _initRawReceive();
+        _onUnrestrictedStringLost = cb;
     }
 }
