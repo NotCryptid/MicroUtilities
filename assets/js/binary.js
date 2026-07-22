@@ -1,5 +1,5 @@
-// meta={"simUrl":"https://trg-arcade.userpxt.io/v4.0.14/---simulator","cdnUrl":"https://cdn.makecode.com","version":"2.0.1","target":"arcade","targetVersion":"4.0.14","repo":"notcryptid/microutilities"}
-// total=1695943 new=2.42% cached=67.84% other=29.74%
+// meta={"simUrl":"https://trg-arcade.userpxt.io/v4.0.14/---simulator","cdnUrl":"https://cdn.makecode.com","version":"2.0.2","target":"arcade","targetVersion":"4.0.14","repo":"notcryptid/microutilities"}
+// total=1695941 new=2.42% cached=67.84% other=29.74%
 (function (ectx) {
 'use strict';
 const runtime = ectx.runtime;
@@ -869,7 +869,7 @@ switch (step) {
     s.callLocIdx = 63; s.pc = 37; return s.tmp_0;
   case 37:
     r0 = s.retval;
-    globals.SimpleMenu___19696 = (r0);
+    globals.SimpleMenu___4510 = (r0);
     r0 = undefined;
     return leave(s, r0)
   default: oops()
@@ -43258,7 +43258,7 @@ const sprites_BaseSpriteSayRenderer__C2276_VT = mkVTable({
   },
 });
 
-const breakpoints = setupDebugger(1, ["SimpleMenu___19696"])
+const breakpoints = setupDebugger(1, ["SimpleMenu___4510"])
 
 return _main___P19691
 })
