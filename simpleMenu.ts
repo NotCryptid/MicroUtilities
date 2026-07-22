@@ -20,7 +20,7 @@ namespace microUtilities {
     // (rather than going through selectedIndex) depend on this exact
     // layout, so it isn't configurable.
     const _MENU_ROW_HEIGHT = 12;
-    const _MENU_ROW_START_Y = 10;
+    const _MENU_ROW_START_Y = 0;
 
     /** A single row of text in a SimpleMenu list. */
     export interface MenuItem {
@@ -39,7 +39,7 @@ namespace microUtilities {
 
     /**
      * A single column of plain-text rows, fixed at 12px tall starting at
-     * y=10, with no icons, no built-in scrolling, and no controller
+     * y=0, with no icons, no built-in scrolling, and no controller
      * navigation. Only the leading rows that fit within the sprite's
      * current height are drawn; the host is expected to swap in whichever
      * slice of items it wants visible and drive scrolling/selection itself.
@@ -57,10 +57,10 @@ namespace microUtilities {
             super(img`.`, SpriteKind.SimpleMenu);
             this.items = items || [];
             this.selectedIndex = -1;
-            this.defaultForeground = 1;
+            this.defaultForeground = 15;
             this.defaultBackground = 0;
-            this.selectedForeground = 15;
-            this.selectedBackground = 1;
+            this.selectedForeground = 1;
+            this.selectedBackground = 15;
         }
 
         draw(drawLeft: number, drawTop: number) {
