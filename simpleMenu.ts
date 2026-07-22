@@ -118,7 +118,14 @@ namespace microUtilities {
 
                 if (selected && this.scrollEnabled && textWidth > availableWidth) {
                     const offset = this.scrollOffset(textWidth - availableWidth);
-                    screen.print(item.text, drawLeft + 2 - offset, rowTop + 2, foreground);
+                    // Printed into a buffer sized to exactly the visible interior:
+                    // glyph draws are bounds-checked against the buffer itself, so
+                    // whatever falls outside [0, availableWidth) is simply never
+                    // drawn, instead of relying on the scroll offset alone to keep
+                    // the text from poking past the row's edge.
+                    const clip = image.create(availableWidth, _MENU_ROW_HEIGHT);
+                    clip.print(item.text, -offset, 2, foreground, font);
+                    screen.drawTransparentImage(clip, drawLeft + 2, rowTop);
                 } else {
                     const maxChars = Math.max(0, (availableWidth / font.charWidth) | 0);
                     const text = item.text.length > maxChars ? item.text.slice(0, maxChars) : item.text;
