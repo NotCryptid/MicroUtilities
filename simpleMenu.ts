@@ -112,21 +112,33 @@ namespace microUtilities {
                 }
                 if (!foreground || !item.text) continue;
 
-                const availableWidth = this.width - 4;
+                // The comfortable, both-sides-padded width. Text that fits
+                // within this is shown plainly. Text that doesn't gets the
+                // 2px margin only on whichever side still shows an
+                // uncropped end of the string -- the cropped side goes
+                // flush to the row's true edge instead of keeping a margin
+                // it isn't earning.
+                const paddedAvailable = this.width - 4;
                 const font = image.getFontForText(item.text);
                 const textWidth = item.text.length * font.charWidth;
 
-                if (selected && this.scrollEnabled && textWidth > availableWidth) {
-                    // Unlike the 2px-padded static text below, a scrolling row
-                    // uses the full row width: the point of scrolling is to
-                    // reveal text that doesn't fit the padded look, so the
-                    // clip goes edge-to-edge instead of keeping that margin.
-                    const offset = this.scrollOffset(Math.max(0, textWidth - this.width));
+                if (selected && this.scrollEnabled && textWidth > paddedAvailable) {
+                    // scrollRange is how far the offset travels: 0 shows the
+                    // true start (2px left margin, flush cropped on the
+                    // right), scrollRange shows the true end (flush cropped
+                    // on the left, 2px right margin). The clip is the full
+                    // row width so both extremes can reach their true edge.
+                    const scrollRange = textWidth - paddedAvailable;
+                    const offset = this.scrollOffset(scrollRange);
                     const clip = image.create(this.width, _MENU_ROW_HEIGHT);
-                    clip.print(item.text, -offset, 2, foreground, font);
+                    clip.print(item.text, 2 - offset, 2, foreground, font);
                     screen.drawTransparentImage(clip, drawLeft, rowTop);
                 } else {
-                    const maxChars = Math.max(0, (availableWidth / font.charWidth) | 0);
+                    // Only the left margin is reserved here; if the text
+                    // doesn't fit, its cropped right end runs flush to the
+                    // row's true edge instead of stopping short of it.
+                    const flushAvailable = this.width - 2;
+                    const maxChars = Math.max(0, (flushAvailable / font.charWidth) | 0);
                     const text = item.text.length > maxChars ? item.text.slice(0, maxChars) : item.text;
                     screen.print(text, drawLeft + 2, rowTop + 2, foreground);
                 }
