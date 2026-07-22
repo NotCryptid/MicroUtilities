@@ -53,6 +53,15 @@ namespace microUtilities {
         private selectedForeground: number;
         private selectedBackground: number;
 
+        // Marquee-scroll state for the currently selected row's text. Only
+        // the selected row ever scrolls; unselected rows are simply
+        // truncated to fit so their text never overflows the row.
+        private scrollEnabled: boolean;
+        private scrollDelay: number;
+        private scrollSpeed: number;
+        private scrollTrackedIndex: number;
+        private scrollStartTime: number;
+
         constructor(items: MenuItem[]) {
             super(img`.`, SpriteKind.SimpleMenu);
             this.items = items || [];
@@ -61,9 +70,31 @@ namespace microUtilities {
             this.defaultBackground = 0;
             this.selectedForeground = 1;
             this.selectedBackground = 15;
+            this.scrollEnabled = true;
+            this.scrollDelay = 700;
+            this.scrollSpeed = 20;
+            this.scrollTrackedIndex = -1;
+            this.scrollStartTime = 0;
+        }
+
+        /**
+         * Controls whether the selected row's text scrolls when it doesn't
+         * fit within the menu's width. delayMs is how long a row must stay
+         * selected before it starts scrolling; speedPxPerSec is how fast it
+         * scrolls once started.
+         */
+        setScroll(enabled: boolean, delayMs?: number, speedPxPerSec?: number) {
+            this.scrollEnabled = enabled;
+            if (delayMs !== undefined) this.scrollDelay = delayMs;
+            if (speedPxPerSec !== undefined) this.scrollSpeed = speedPxPerSec;
         }
 
         draw(drawLeft: number, drawTop: number) {
+            if (this.selectedIndex !== this.scrollTrackedIndex) {
+                this.scrollTrackedIndex = this.selectedIndex;
+                this.scrollStartTime = control.millis();
+            }
+
             const visibleRows = Math.min(
                 this.items.length,
                 Math.max(0, ((this.height - _MENU_ROW_START_Y) / _MENU_ROW_HEIGHT) | 0)
@@ -79,10 +110,41 @@ namespace microUtilities {
                 if (background) {
                     screen.fillRect(drawLeft, rowTop, this.width, _MENU_ROW_HEIGHT, background);
                 }
-                if (foreground && item.text) {
-                    screen.print(item.text, drawLeft + 2, rowTop + 2, foreground);
+                if (!foreground || !item.text) continue;
+
+                const availableWidth = this.width - 4;
+                const font = image.getFontForText(item.text);
+                const textWidth = item.text.length * font.charWidth;
+
+                if (selected && this.scrollEnabled && textWidth > availableWidth) {
+                    const offset = this.scrollOffset(textWidth - availableWidth);
+                    screen.print(item.text, drawLeft + 2 - offset, rowTop + 2, foreground);
+                } else {
+                    const maxChars = Math.max(0, (availableWidth / font.charWidth) | 0);
+                    const text = item.text.length > maxChars ? item.text.slice(0, maxChars) : item.text;
+                    screen.print(text, drawLeft + 2, rowTop + 2, foreground);
                 }
             }
+        }
+
+        /**
+         * Ticks a bounce (there-and-back) scroll animation for the selected
+         * row's text: paused, travel to fully reveal the overflowing end,
+         * paused, travel back. Bouncing rather than wrapping means the
+         * printed text never has to move past the row's own bounds, so it
+         * stays naturally clipped without needing any off-row drawing.
+         */
+        private scrollOffset(overflow: number): number {
+            const elapsed = control.millis() - this.scrollStartTime;
+            const pause = this.scrollDelay;
+            const travel = Math.max(1, (overflow * 1000) / this.scrollSpeed);
+            const cycle = pause * 2 + travel * 2;
+            const t = elapsed % cycle;
+
+            if (t < pause) return 0;
+            if (t < pause + travel) return (((t - pause) / travel) * overflow) | 0;
+            if (t < pause * 2 + travel) return overflow;
+            return (overflow - ((t - pause * 2 - travel) / travel) * overflow) | 0;
         }
 
         /** Sets the default (unselected) and selected foreground/background colors. */
