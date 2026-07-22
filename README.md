@@ -11,10 +11,21 @@ A set of useful tools for MakeCode Arcade
 - Detecting if device is a micro:bit
 - Obtaining the device's serial number
 - Unrestricted radio string length (send/receive strings of any length, not just a single packet's worth)
+- `SimpleMenu`: a lightweight scrollable text-list menu sprite
 
 ## Planned features
 - Rotating sprites in 90 degree intervals
 - Reading and writing to the usb port
+
+## Credits
+
+`SimpleMenu` is a small, purpose-built reimplementation of the list-menu
+functionality from [arcade-mini-menu](https://github.com/riknoll/arcade-mini-menu)
+by [riknoll](https://github.com/riknoll), rewritten here to include only the
+subset of features needed by this project's consumers and to avoid pulling
+in the original's full feature set (icons, grids, controller navigation,
+scroll animation) which can't be tree-shaken out of a single class. All
+credit for the original design goes to riknoll.
 
 ## Use as Extension
 

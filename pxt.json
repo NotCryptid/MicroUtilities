@@ -11,6 +11,7 @@
         "assets.json",
         "custom.ts",
         "radio.ts",
+        "simpleMenu.ts",
         "microutils.cpp"
     ],
     "testFiles": [],
