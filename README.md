@@ -12,9 +12,9 @@ A set of useful tools for MakeCode Arcade
 - Obtaining the device's serial number
 - Unrestricted radio string length (send/receive strings of any length, not just a single packet's worth)
 - `SimpleMenu`: a lightweight scrollable text-list menu sprite
+- Rotating sprites in 90 degree intervals
 
 ## Planned features
-- Rotating sprites in 90 degree intervals
 - Reading and writing to the usb port
 
 ## API
@@ -85,6 +85,15 @@ menu.selectedIndex = 0;      // -1 (the default) means nothing is highlighted
 - `menu.close()` — destroys the sprite (alias for `.destroy()`).
 
 Text that doesn't fit a row is truncated when unselected (or when scrolling is disabled); the selected row scrolls back and forth to reveal the rest instead, if scrolling is enabled.
+
+### Sprite rotation
+
+Rotates a sprite's image in-place, snapped to the nearest 90-degree step. Non-square sprites change width/height (and hitbox) accordingly, since the underlying image itself is rotated.
+
+```ts
+microUtilities.setSpriteRotation(mySprite, 90)   // 0, 90, 180, or 270
+microUtilities.getSpriteRotation(mySprite)       // last rotation set; 0 if never set
+```
 
 ## Credits
 

@@ -169,4 +169,33 @@ namespace microUtilities {
         buf.setNumber(NumberFormat.UInt32BE, 0, control.deviceSerialNumber());
         return buf.toHex().toUpperCase();
     }
+
+    /**
+     * Rotate a sprite's image, snapped to the nearest 90-degree step.
+     */
+    //% blockId=microUtilities_setSpriteRotation block="set %sprite rotation to %rotation"
+    //% rotation.min=0 rotation.max=270
+    export function setSpriteRotation(sprite: Sprite, rotation: number): void {
+        rotation = (Math.round(rotation / 90) * 90 % 360 + 360) % 360;
+        const steps = (rotation - getSpriteRotation(sprite) + 360) % 360 / 90;
+        let img = sprite.image;
+        for (let i = 0; i < steps; i++) {
+            const rotated = image.create(img.height, img.width);
+            for (let x = 0; x < img.width; x++)
+                for (let y = 0; y < img.height; y++)
+                    rotated.setPixel(img.height - 1 - y, x, img.getPixel(x, y));
+            img = rotated;
+        }
+        sprite.setImage(img);
+        sprite.data["microUtilitiesRotation"] = rotation;
+    }
+
+    /**
+     * A sprite's current rotation (0, 90, 180, or 270), as last set by setSpriteRotation.
+     */
+    //% blockId=microUtilities_getSpriteRotation block="%sprite rotation"
+    export function getSpriteRotation(sprite: Sprite): number {
+        const r = sprite.data["microUtilitiesRotation"];
+        return r === undefined ? 0 : r;
+    }
 }
