@@ -13,9 +13,7 @@ A set of useful tools for MakeCode Arcade
 - Unrestricted radio string length (send/receive strings of any length, not just a single packet's worth)
 - `SimpleMenu`: a lightweight scrollable text-list menu sprite
 - Rotating sprites in 90 degree intervals
-
-## Planned features
-- Reading and writing to the usb port
+- Reading and writing over USB serial (micro:bit only)
 
 ## API
 
@@ -42,6 +40,21 @@ microUtilities.togglePixel(x, y)                  // flip a pixel (0-4, 0-4) on/
 microUtilities.setPixel(x, y, on)                 // set a pixel on/off
 microUtilities.setPixelBrightness(x, y, 0-255)    // set a pixel's brightness
 ```
+
+### USB serial
+
+Only supported on the BBC micro:bit (including a micro:bit running Arcade, e.g. on a Newbit shield); check `isSerialSupported()` first if you need to know. On other Arcade hardware, the write functions are no-ops and the read functions always return empty.
+
+```ts
+microUtilities.isSerialSupported()          // true if reading/writing over USB serial works on this device
+microUtilities.writeSerialString(text)      // write a string over USB serial
+microUtilities.writeSerialBuffer(buffer)    // write a buffer over USB serial
+microUtilities.serialBytesAvailable()       // number of bytes currently waiting to be read
+microUtilities.readSerialString()           // read whatever's waiting, as a string (empty if nothing's arrived)
+microUtilities.readSerialBuffer()           // read whatever's waiting, as a buffer (empty if nothing's arrived)
+```
+
+The read functions never block: they return immediately with whatever has arrived so far, even if that's nothing.
 
 ### Unrestricted radio strings
 

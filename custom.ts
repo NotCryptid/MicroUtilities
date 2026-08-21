@@ -40,6 +40,21 @@ function _setPixelBrightness(x: number, y: number, brightness: number): void {
 function _isMicrobit(): boolean {
     return false;
 }
+//% shim=microUtilities::_isSerialSupported
+function _isSerialSupported(): boolean {
+    return false;
+}
+//% shim=microUtilities::_serialWriteBuffer
+function _serialWriteBuffer(buffer: Buffer): void {
+}
+//% shim=microUtilities::_serialAvailable
+function _serialAvailable(): number {
+    return 0;
+}
+//% shim=microUtilities::_serialReadBuffer
+function _serialReadBuffer(): Buffer {
+    return Buffer.create(0);
+}
 
 enum StorageUnit {
     Bytes,
@@ -158,6 +173,64 @@ namespace microUtilities {
     //% blockId=microUtilities_isMicrobit block="is micro:bit"
     export function isMicrobit(): boolean {
         return _isMicrobit();
+    }
+
+    /**
+     * True if this device supports reading and writing over USB serial.
+     * Currently only the BBC micro:bit (including a micro:bit running
+     * Arcade, e.g. on a Newbit shield) supports this; other Arcade hardware
+     * ignores the serial functions below.
+     */
+    //% blockId=microUtilities_isSerialSupported block="is serial supported"
+    export function isSerialSupported(): boolean {
+        return _isSerialSupported();
+    }
+
+    /**
+     * Write a string over USB serial. Has no effect if isSerialSupported()
+     * is false.
+     */
+    //% blockId=microUtilities_writeSerialString block="write serial string %text"
+    export function writeSerialString(text: string): void {
+        if (!text) return;
+        _serialWriteBuffer(control.createBufferFromUTF8(text));
+    }
+
+    /**
+     * Write a buffer over USB serial. Has no effect if isSerialSupported()
+     * is false.
+     */
+    //% blockId=microUtilities_writeSerialBuffer block="write serial buffer %buffer"
+    export function writeSerialBuffer(buffer: Buffer): void {
+        _serialWriteBuffer(buffer);
+    }
+
+    /**
+     * Number of bytes currently waiting in the USB serial receive buffer.
+     */
+    //% blockId=microUtilities_serialBytesAvailable block="serial bytes available"
+    export function serialBytesAvailable(): number {
+        return _serialAvailable();
+    }
+
+    /**
+     * Reads whatever data is currently waiting in the USB serial receive
+     * buffer, as a string. Returns immediately -- if nothing has arrived
+     * yet, this returns an empty string rather than waiting for data.
+     */
+    //% blockId=microUtilities_readSerialString block="read serial string"
+    export function readSerialString(): string {
+        return _serialReadBuffer().toString();
+    }
+
+    /**
+     * Reads whatever data is currently waiting in the USB serial receive
+     * buffer, as a buffer. Returns immediately -- if nothing has arrived
+     * yet, this returns an empty buffer rather than waiting for data.
+     */
+    //% blockId=microUtilities_readSerialBuffer block="read serial buffer"
+    export function readSerialBuffer(): Buffer {
+        return _serialReadBuffer();
     }
 
     /**

@@ -36,6 +36,7 @@
 #if MICROUTILITIES_ARCADE_MBIT
 #include "NRF52LedMatrix.h"
 #include "NRF52Pin.h"
+#include "NRF52Serial.h"
 #include "NRFLowLevelTimer.h"
 
 using namespace codal;
@@ -79,6 +80,30 @@ static NRF52LEDMatrix &arcadeMbitDisplay() {
     static NRF52LEDMatrix display(timer, mbitMatrixMap, 6011, DisplayMode::DISPLAY_MODE_GREYSCALE);
     return display;
 }
+
+// USB TX/RX pins and UARTE peripheral, lifted from codal-microbit-v2's own
+// MicroBitIO.cpp/MicroBit.cpp (MICROBIT_PIN_UART_TX/RX = P0_06/P1_08 there --
+// same physical pins as Arcade's own P0_6/P1_8 macros used below, just
+// without the leading zero), wired straight through to the interface chip's
+// USB-serial bridge -- same pins and peripheral (NRF_UARTE0) the plain
+// micro:bit target's uBit.serial uses. Unlike TIMER4 for the display above,
+// there's no equivalent confirmation that Arcade's own core---nrf52 runtime
+// leaves NRF_UARTE0 unclaimed -- this hasn't been verified against actual
+// on-device behavior.
+static NRF52Serial &arcadeMbitSerial() {
+    static NRF52Pin usbTx(6012, P0_6, PIN_CAPABILITY_DIGITAL);
+    static NRF52Pin usbRx(6013, P1_8, PIN_CAPABILITY_DIGITAL);
+    static NRF52Serial serial(usbTx, usbRx, NRF_UARTE0);
+    return serial;
+}
+#endif
+
+#if MICROUTILITIES_ARCADE_MBIT
+#define MICROUTILITIES_SERIAL arcadeMbitSerial()
+#elif MICROUTILITIES_HAS_MICROBIT
+// MicroBit.h brings in codal's uBit global and (via "using namespace codal")
+// the ASYNC etc. symbols used below.
+#define MICROUTILITIES_SERIAL uBit.serial
 #endif
 
 namespace pxt {
@@ -190,6 +215,55 @@ int32_t _cpuSpeed() {
 int _isMicrobit() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
+
+//%
+int _isSerialSupported() {
+    return MICROUTILITIES_HAS_MICROBIT;
+}
+
+#if MICROUTILITIES_HAS_MICROBIT
+//%
+void _serialWriteBuffer(Buffer buffer) {
+    if (!buffer)
+        return;
+    MICROUTILITIES_SERIAL.send(buffer->data, buffer->length);
+}
+
+//%
+int32_t _serialAvailable() {
+    return MICROUTILITIES_SERIAL.isReadable() ? MICROUTILITIES_SERIAL.rxBufferedSize() : 0;
+}
+
+// Drains whatever's currently buffered without blocking (ASYNC mode returns
+// immediately with however many bytes were actually ready, rather than
+// waiting to fill the whole request) -- mirrors pxt-microbit's own
+// libs/core/serial.cpp readBuffer().
+//%
+Buffer _serialReadBuffer() {
+    int32_t length = MICROUTILITIES_SERIAL.getRxBufferSize();
+    if (length <= 0)
+        return mkBuffer(NULL, 0);
+    auto buf = mkBuffer(NULL, length);
+    registerGCObj(buf);
+    int read = MICROUTILITIES_SERIAL.read(buf->data, buf->length, ASYNC);
+    Buffer res = read <= 0 ? mkBuffer(NULL, 0) : read == length ? buf : mkBuffer(buf->data, read);
+    unregisterGCObj(buf);
+    return res;
+}
+#else
+//%
+void _serialWriteBuffer(Buffer buffer) {}
+
+//%
+int32_t _serialAvailable() {
+    return 0;
+}
+
+//%
+Buffer _serialReadBuffer() {
+    return mkBuffer(NULL, 0);
+}
+#endif
 
 #if MICROUTILITIES_ARCADE_MBIT
 //%
