@@ -40,6 +40,10 @@ function _setPixelBrightness(x: number, y: number, brightness: number): void {
 function _isMicrobit(): boolean {
     return false;
 }
+//% shim=microUtilities::_boardRevision
+function _boardRevision(): string {
+    return "";
+}
 //% shim=microUtilities::_isSerialSupported
 function _isSerialSupported(): boolean {
     return false;
@@ -173,6 +177,18 @@ namespace microUtilities {
     //% blockId=microUtilities_isMicrobit block="is micro:bit"
     export function isMicrobit(): boolean {
         return _isMicrobit();
+    }
+
+    /**
+     * The micro:bit board hardware revision, like "2.0" or "2.2" -- empty
+     * string on non-micro:bit hardware, or if the revision can't be read.
+     * V2.2 and V2.21 boards both report "2.2": the interface chip's board ID
+     * didn't change between those two revisions, so they can't be told apart
+     * from software.
+     */
+    //% blockId=microUtilities_boardRevision block="board revision"
+    export function boardRevision(): string {
+        return _boardRevision();
     }
 
     /**

@@ -216,6 +216,34 @@ int _isMicrobit() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
 
+// Board ID -> revision string mapping lifted from pxt-microbit's own
+// control.cpp _hardwareVersion(): uBit.power (MicroBitPowerManager) queries
+// the interface/power-management chip for a board ID that changed with the
+// V2.2 MEMS microphone swap. It never changed again for V2.21, so that
+// revision reports the same ID as V2.2 and can't be told apart here -- nor,
+// as far as is publicly documented, anywhere else in software. Only
+// available on the plain micro:bit target: the Arcade-on-micro:bit build
+// (MICROUTILITIES_ARCADE_MBIT) never includes MicroBit.h, so uBit.power
+// doesn't exist there.
+//%
+String _boardRevision() {
+#if MICROUTILITIES_HAS_MICROBIT && !MICROUTILITIES_ARCADE_MBIT
+    MicroBitVersion v = uBit.power.getVersion();
+    switch (v.board) {
+    case 0x9903:
+    case 0x9904:
+        return mkString("2.0", -1);
+    case 0x9905:
+    case 0x9906:
+        return mkString("2.2", -1);
+    default:
+        return mkString("", 0);
+    }
+#else
+    return mkString("", 0);
+#endif
+}
+
 //%
 int _isSerialSupported() {
     return MICROUTILITIES_HAS_MICROBIT;
