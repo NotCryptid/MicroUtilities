@@ -37,7 +37,10 @@
 #include "NRF52LedMatrix.h"
 #include "NRF52Pin.h"
 #include "NRF52Serial.h"
+#include "NRF52I2C.h"
 #include "NRFLowLevelTimer.h"
+#include "codal_target_hal.h"
+#include "ErrorNo.h"
 
 using namespace codal;
 
@@ -242,25 +245,80 @@ int _isMicrobit() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
 
+#if MICROUTILITIES_ARCADE_MBIT
+// Hand-rolled equivalent of codal-microbit-v2's own
+// MicroBitPowerManager::getVersion(), talking to the same USB interface
+// chip over the same internal-only I2C bus the plain-target branch below
+// reaches via uBit.power -- neither uBit nor MicroBitPowerManager exist on
+// this build path (see the comment on MICROUTILITIES_ARCADE_MBIT above), so
+// this repeats just enough of that "UIPM" wire protocol by hand instead:
+//
+//  - SDA = P0.16, SCL = P0.08 (MicroBitIO.h's io.sda/io.scl -- internal-only,
+//    not the general-purpose edge-connector I2C bus), address 0x70, 400kHz.
+//  - A 2-byte request: [0x10 (READ_REQUEST), 0x01 (BOARD_REVISION)].
+//  - A "nop" zero-length write before each transaction -- silicon errata
+//    workaround some KL27 interface chips need to wake from light sleep;
+//    the original driver performs this unconditionally until it has
+//    confirmed (from this very board ID) that it isn't needed, so there's
+//    no way to skip it up front here either.
+//  - The combined IRQ line, P0.25, goes low once a response is ready; poll
+//    it for up to MICROBIT_UIPM_MAX_RETRIES (20) attempts, ~1ms apart,
+//    matching MicroBitPowerManager::awaitUIPMPacket() exactly.
+//  - A response starting with 0x20 (ERROR_RESPONSE) means busy (0x39,
+//    resets the retry budget and tries again) or incomplete (0x31, just
+//    retries); otherwise the 16-bit board ID sits at byte offset 3.
+//
+// Returns the raw board ID on success, or -1 if the interface chip never
+// responded in time (an unresponsive/absent chip is a plausible outcome
+// here -- unlike the plain-target branch, nothing else on this build path
+// already depends on this I2C link working, so a timeout is handled as
+// "unknown" rather than treated as an error).
+static int32_t arcadeMbitReadBoardIdViaI2C() {
+    static NRF52Pin sda(6014, P0_16, PIN_CAPABILITY_DIGITAL);
+    static NRF52Pin scl(6015, P0_8, PIN_CAPABILITY_DIGITAL);
+    static NRF52Pin irq1(6016, P0_25, PIN_CAPABILITY_DIGITAL);
+    static NRF52I2C i2c(sda, scl);
+    static bool configured = false;
+    if (!configured) {
+        i2c.setFrequency(400000);
+        configured = true;
+    }
+
+    const uint16_t UIPM_ADDR = 0x70 << 1;
+    uint8_t nopByte = 0;
+    uint8_t request[2] = { 0x10, 0x01 };
+
+    i2c.write(UIPM_ADDR, &nopByte, 0, false);
+    if (i2c.write(UIPM_ADDR, request, 2, false) != DEVICE_OK) return -1;
+
+    uint8_t response[12];
+    for (int attempt = 0; attempt < 20; attempt++) {
+        target_wait(1);
+        if (irq1.getDigitalValue() != 0) continue; // not asserted (active low) yet
+
+        i2c.write(UIPM_ADDR, &nopByte, 0, false);
+        if (i2c.read(UIPM_ADDR, response, sizeof(response), false) != DEVICE_OK) continue;
+
+        if (response[0] == 0x20) {
+            if (response[1] == 0x39) { attempt = -1; continue; } // busy -- reset retry budget
+            if (response[1] == 0x31) continue;                    // incomplete -- just retry
+            return -1;
+        }
+
+        int16_t board;
+        memcpy(&board, &response[3], 2);
+        return board;
+    }
+    return -1;
+}
+#endif
+
 // Board ID -> revision string mapping lifted from pxt-microbit's own
 // control.cpp _hardwareVersion(): uBit.power (MicroBitPowerManager) queries
 // the interface/power-management chip for a board ID that changed with the
 // V2.2 MEMS microphone swap. It never changed again for V2.21, so that
 // revision reports the same ID as V2.2 and can't be told apart here -- nor,
-// as far as is publicly documented, anywhere else in software. Only
-// available on the plain micro:bit target: the Arcade-on-micro:bit build
-// (MICROUTILITIES_ARCADE_MBIT) never includes MicroBit.h, so uBit.power
-// doesn't exist there, and there's no I2C link to the interface/power chip
-// on this path to query some other way.
-//
-// MicroOS only ever targets V2 hardware -- V1's nRF51822 (16KB RAM) can't
-// fit an Arcade build at all, so this can never actually be running there --
-// but a plain FICR RAM-size check (a direct register read, no I2C, no
-// power-chip dependency) is enough to positively confirm genuine V2
-// hardware (nRF52833, 128KB RAM) and report a useful "2.x" instead of an
-// always-empty string. Anything that doesn't read as 128KB is explicitly
-// unsupported (empty string) rather than silently indistinguishable from
-// "V2, revision unknown".
+// as far as is publicly documented, anywhere else in software.
 //%
 String _boardRevision() {
 #if MICROUTILITIES_HAS_MICROBIT && !MICROUTILITIES_ARCADE_MBIT
@@ -276,7 +334,23 @@ String _boardRevision() {
         return mkString("", 0);
     }
 #elif MICROUTILITIES_ARCADE_MBIT
-    return NRF_FICR->INFO.RAM >= 128 ? mkString("2.x", -1) : mkString("", 0);
+    switch (arcadeMbitReadBoardIdViaI2C()) {
+    case 0x9903:
+    case 0x9904:
+        return mkString("2.0", -1);
+    case 0x9905:
+    case 0x9906:
+        return mkString("2.2", -1);
+    default:
+        // I2C query failed/timed out, or returned an ID this mapping
+        // doesn't recognize -- fall back to confirming genuine V2 hardware
+        // via a plain FICR RAM-size check (no I2C, always available) rather
+        // than reporting nothing. MicroOS only ever targets V2 hardware --
+        // V1's nRF51822 (16KB RAM) can't fit an Arcade build at all -- so
+        // 128KB RAM is enough to positively confirm real V2 silicon even
+        // when the exact sub-revision couldn't be read.
+        return NRF_FICR->INFO.RAM >= 128 ? mkString("2.x", -1) : mkString("", 0);
+    }
 #else
     return mkString("", 0);
 #endif
