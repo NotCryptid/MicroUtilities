@@ -273,17 +273,6 @@ int _isMicrobit() {
 // here -- unlike the plain-target branch, nothing else on this build path
 // already depends on this I2C link working, so a timeout is handled as
 // "unknown" rather than treated as an error).
-// TEMPORARY diagnostic capture -- lets _boardRevisionDebug() report exactly
-// where the exchange below got stuck, over the (now confirmed working)
-// serial link, instead of guessing blind again the way the UART bug had to
-// be diagnosed. Layout: [0]=initial write status, [1]=1 if the IRQ line was
-// ever seen low, [2]=which attempt that happened on (0xFF if never),
-// [3]=read status the one time a read was attempted, [4..15]=the full raw
-// 12-byte response buffer (all zero if no read ever completed). Remove
-// alongside arcadeMbitReadBoardIdViaI2C()'s instrumentation once this is
-// confirmed working end-to-end.
-static uint8_t arcadeMbitI2cDebug[16] = {0xFF, 0, 0xFF, 0xFF, 0,0,0,0,0,0,0,0,0,0,0,0};
-
 static int32_t arcadeMbitReadBoardIdViaI2C() {
     static NRF52Pin sda(6014, P0_16, PIN_CAPABILITY_DIGITAL);
     static NRF52Pin scl(6015, P0_8, PIN_CAPABILITY_DIGITAL);
@@ -300,46 +289,26 @@ static int32_t arcadeMbitReadBoardIdViaI2C() {
     uint8_t request[2] = { 0x10, 0x01 };
 
     i2c.write(UIPM_ADDR, &nopByte, 0, false);
-    int writeStatus = i2c.write(UIPM_ADDR, request, 2, false);
-    arcadeMbitI2cDebug[0] = (uint8_t)writeStatus;
-    if (writeStatus != DEVICE_OK) return -1;
+    if (i2c.write(UIPM_ADDR, request, 2, false) != DEVICE_OK) return -1;
 
     uint8_t response[12];
-    memset(response, 0, sizeof(response));
-    uint8_t irqSeen = 0;
-    uint8_t irqSeenAtAttempt = 0xFF;
-    int readStatus = -1;
-
     for (int attempt = 0; attempt < 20; attempt++) {
         target_wait(1);
         if (irq1.getDigitalValue() != 0) continue; // not asserted (active low) yet
-        irqSeen = 1;
-        if (irqSeenAtAttempt == 0xFF) irqSeenAtAttempt = (uint8_t)attempt;
 
         i2c.write(UIPM_ADDR, &nopByte, 0, false);
-        readStatus = i2c.read(UIPM_ADDR, response, sizeof(response), false);
-        if (readStatus != DEVICE_OK) continue;
+        if (i2c.read(UIPM_ADDR, response, sizeof(response), false) != DEVICE_OK) continue;
 
         if (response[0] == 0x20) {
             if (response[1] == 0x39) { attempt = -1; continue; } // busy -- reset retry budget
             if (response[1] == 0x31) continue;                    // incomplete -- just retry
-            break; // real error -- stop and let the debug dump show it
+            return -1;
         }
-
-        arcadeMbitI2cDebug[1] = irqSeen;
-        arcadeMbitI2cDebug[2] = irqSeenAtAttempt;
-        arcadeMbitI2cDebug[3] = (uint8_t)readStatus;
-        memcpy(&arcadeMbitI2cDebug[4], response, 12);
 
         uint16_t board;
         memcpy(&board, &response[3], 2);
         return board;
     }
-
-    arcadeMbitI2cDebug[1] = irqSeen;
-    arcadeMbitI2cDebug[2] = irqSeenAtAttempt;
-    arcadeMbitI2cDebug[3] = (uint8_t)readStatus;
-    memcpy(&arcadeMbitI2cDebug[4], response, 12);
     return -1;
 }
 #endif
@@ -384,17 +353,6 @@ String _boardRevision() {
     }
 #else
     return mkString("", 0);
-#endif
-}
-
-// TEMPORARY -- see arcadeMbitI2cDebug's comment above. Remove alongside it
-// once the I2C board-revision query is confirmed working end-to-end.
-//%
-Buffer _boardRevisionDebug() {
-#if MICROUTILITIES_ARCADE_MBIT
-    return mkBuffer(arcadeMbitI2cDebug, sizeof(arcadeMbitI2cDebug));
-#else
-    return mkBuffer(NULL, 0);
 #endif
 }
 

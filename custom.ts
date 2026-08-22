@@ -44,10 +44,6 @@ function _isMicrobit(): boolean {
 function _boardRevision(): string {
     return "";
 }
-//% shim=microUtilities::_boardRevisionDebug
-function _boardRevisionDebug(): Buffer {
-    return Buffer.create(0);
-}
 //% shim=microUtilities::_isSerialSupported
 function _isSerialSupported(): boolean {
     return false;
@@ -197,18 +193,6 @@ namespace microUtilities {
     //% blockId=microUtilities_boardRevision block="board revision"
     export function boardRevision(): string {
         return _boardRevision();
-    }
-
-    /**
-     * TEMPORARY diagnostic -- hex dump of the raw state from the last
-     * boardRevision() I2C query (Arcade-on-micro:bit builds only): write
-     * status, whether/when the IRQ line was seen asserted, read status, and
-     * the full raw 12-byte response. Remove once boardRevision() is
-     * confirmed reading V2.0/V2.2 correctly.
-     */
-    //% blockId=microUtilities_boardRevisionDebug block="board revision debug"
-    export function boardRevisionDebug(): string {
-        return _boardRevisionDebug().toHex();
     }
 
     /**
