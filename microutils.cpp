@@ -249,6 +249,24 @@ int _isSerialSupported() {
     return MICROUTILITIES_HAS_MICROBIT;
 }
 
+// Diagnostic only -- lets a caller tell *which* of the three build
+// configurations at the top of this file was actually compiled in, since
+// isSerialSupported() alone collapses "not supported" and both supported
+// paths down to a single bit. Useful for confirming from on-device (e.g. via
+// an LED blink at boot) whether ARCADE_MBIT_CODAL was actually defined for a
+// given hw target, without needing a debugger or serial output -- which is
+// exactly the thing in question when USB serial itself isn't working yet.
+//%
+int _serialBackend() {
+#if MICROUTILITIES_ARCADE_MBIT
+    return 1; // hand-rolled NRF52Serial on UARTE0 (Arcade-on-micro:bit)
+#elif MICROUTILITIES_HAS_MICROBIT
+    return 2; // plain pxt-microbit target's uBit.serial
+#else
+    return 0; // no serial backend compiled in at all
+#endif
+}
+
 #if MICROUTILITIES_HAS_MICROBIT
 //%
 void _serialWriteBuffer(Buffer buffer) {

@@ -48,6 +48,10 @@ function _boardRevision(): string {
 function _isSerialSupported(): boolean {
     return false;
 }
+//% shim=microUtilities::_serialBackend
+function _serialBackend(): number {
+    return 0;
+}
 //% shim=microUtilities::_serialWriteBuffer
 function _serialWriteBuffer(buffer: Buffer): void {
 }
@@ -200,6 +204,19 @@ namespace microUtilities {
     //% blockId=microUtilities_isSerialSupported block="is serial supported"
     export function isSerialSupported(): boolean {
         return _isSerialSupported();
+    }
+
+    /**
+     * Diagnostic: which USB-serial backend this build was actually compiled
+     * with. isSerialSupported() alone can't distinguish "not supported" from
+     * a genuine runtime problem in a supported backend -- this can.
+     * 0 = no serial backend compiled in (isSerialSupported() will be false)
+     * 1 = Arcade-on-micro:bit backend (hand-rolled NRF52Serial on UARTE0)
+     * 2 = plain pxt-microbit target's uBit.serial
+     */
+    //% blockId=microUtilities_serialBackend block="serial backend"
+    export function serialBackend(): number {
+        return _serialBackend();
     }
 
     /**
