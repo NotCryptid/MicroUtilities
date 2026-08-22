@@ -250,7 +250,17 @@ int _isMicrobit() {
 // as far as is publicly documented, anywhere else in software. Only
 // available on the plain micro:bit target: the Arcade-on-micro:bit build
 // (MICROUTILITIES_ARCADE_MBIT) never includes MicroBit.h, so uBit.power
-// doesn't exist there.
+// doesn't exist there, and there's no I2C link to the interface/power chip
+// on this path to query some other way.
+//
+// MicroOS only ever targets V2 hardware -- V1's nRF51822 (16KB RAM) can't
+// fit an Arcade build at all, so this can never actually be running there --
+// but a plain FICR RAM-size check (a direct register read, no I2C, no
+// power-chip dependency) is enough to positively confirm genuine V2
+// hardware (nRF52833, 128KB RAM) and report a useful "2.x" instead of an
+// always-empty string. Anything that doesn't read as 128KB is explicitly
+// unsupported (empty string) rather than silently indistinguishable from
+// "V2, revision unknown".
 //%
 String _boardRevision() {
 #if MICROUTILITIES_HAS_MICROBIT && !MICROUTILITIES_ARCADE_MBIT
@@ -265,6 +275,8 @@ String _boardRevision() {
     default:
         return mkString("", 0);
     }
+#elif MICROUTILITIES_ARCADE_MBIT
+    return NRF_FICR->INFO.RAM >= 128 ? mkString("2.x", -1) : mkString("", 0);
 #else
     return mkString("", 0);
 #endif
