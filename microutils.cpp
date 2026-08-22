@@ -86,14 +86,40 @@ static NRF52LEDMatrix &arcadeMbitDisplay() {
 // same physical pins as Arcade's own P0_6/P1_8 macros used below, just
 // without the leading zero), wired straight through to the interface chip's
 // USB-serial bridge -- same pins and peripheral (NRF_UARTE0) the plain
-// micro:bit target's uBit.serial uses. Unlike TIMER4 for the display above,
-// there's no equivalent confirmation that Arcade's own core---nrf52 runtime
-// leaves NRF_UARTE0 unclaimed -- this hasn't been verified against actual
-// on-device behavior.
+// micro:bit target's uBit.serial uses. Confirmed against real hardware: this
+// construction is byte-for-byte what codal-microbit-v2's own MicroBit.cpp
+// does (serial(io.usbTx, io.usbRx, NRF_UARTE0)), so the peripheral/pin setup
+// itself isn't the issue it was once suspected to be.
+//
+// What *was* the issue: NRF52Serial's constructor only forwards (tx, rx) to
+// the base codal::Serial class, so it always gets codal's
+// CODAL_SERIAL_DEFAULT_BUFFER_SIZE -- 20 bytes -- for both the rx and tx ring
+// buffers, with no way to override it via the constructor. At 115200 baud a
+// burst can deliver ~230 bytes in the 20ms between this poll loop's reads
+// (see serial_protocol.ts), so any request past ~20 bytes -- i.e. almost
+// every real command except a bare ping -- silently overran the rx ring
+// buffer and got truncated before ever reaching a newline, so
+// handleSerialLine() never fired. Confirmed on-device: a raw terminal ping
+// (22 bytes) round-tripped fine, but device.info (29 bytes) arrived
+// truncated at exactly 20 bytes with no reply, matching this exactly.
+// setRxBufferSize()/setTxBufferSize() are safe to call any time (they
+// re-run the buffer's lazy init themselves) and accept up to 255, the max a
+// uint8_t can hold -- not enough to buffer an entire request/response line
+// in the ring buffer itself (lines can run up to ~24000 chars, per
+// SERIAL_MAX_LINE in serial_protocol.ts), but that's fine: the ring buffer
+// only needs to survive the gap between 20ms poll reads, and
+// serial_protocol.ts's own serialRecvBuffer already accumulates the full
+// line across as many reads as it takes.
 static NRF52Serial &arcadeMbitSerial() {
     static NRF52Pin usbTx(6012, P0_6, PIN_CAPABILITY_DIGITAL);
     static NRF52Pin usbRx(6013, P1_8, PIN_CAPABILITY_DIGITAL);
     static NRF52Serial serial(usbTx, usbRx, NRF_UARTE0);
+    static bool bufferSized = false;
+    if (!bufferSized) {
+        serial.setRxBufferSize(255);
+        serial.setTxBufferSize(255);
+        bufferSized = true;
+    }
     return serial;
 }
 #endif
