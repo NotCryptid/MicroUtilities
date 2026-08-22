@@ -331,7 +331,7 @@ static int32_t arcadeMbitReadBoardIdViaI2C() {
         arcadeMbitI2cDebug[3] = (uint8_t)readStatus;
         memcpy(&arcadeMbitI2cDebug[4], response, 12);
 
-        int16_t board;
+        uint16_t board;
         memcpy(&board, &response[3], 2);
         return board;
     }
